@@ -8,15 +8,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.sbs.qna_service.boundedContext.question.Question;
-import com.sbs.qna_service.boundedContext.question.QuestionForm;
 import com.sbs.qna_service.boundedContext.question.QuestionService;
 import com.sbs.qna_service.boundedContext.user.SiteUser;
 import com.sbs.qna_service.boundedContext.user.UserService;
@@ -29,8 +26,6 @@ import lombok.RequiredArgsConstructor;
 @Controller
 public class AnswerController {
 	private final QuestionService questionService;
-
-	private final AnswerService answerService;
 
 	private final UserService userService;
 
@@ -45,45 +40,48 @@ public class AnswerController {
 			return "question_detail";
 		}
 		// TODO: 답변을 저장한다.
-		Answer answer = answerService.create(question, answerForm.getContent(), siteUser);
-		return "redirect:/question/detail/%s#answer_%d".formatted(answer.getQuestion().getId(), answer.getId());
+		Question answer = questionService.create(null, answerForm.getContent(), siteUser, question.getId());
+		return "redirect:/question/detail/%s#answer_%d".formatted(question.getId(), answer.getId());
 	}
-	
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/modify/{id}")
-    public String answerModify(AnswerForm answerForm, @PathVariable("id") Integer id, Principal principal) {
-        Answer answer = this.answerService.getAnswer(id);
-        if (!answer.getAuthor().getUsername().equals(principal.getName())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수정권한이 없습니다.");
-        }
-        answerForm.setContent(answer.getContent());
-        return "answer_form";
-    }
 
 	@PreAuthorize("isAuthenticated()")
+	@GetMapping("/modify/{id}")
+	public String answerModify(AnswerForm answerForm, @PathVariable("id") Integer id, Principal principal) {
+		Question answer = this.questionService.getOneAnswer(id, 1);
+		if (!answer.getAuthor().getUsername().equals(principal.getName())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수정권한이 없습니다.");
+		}
+		answerForm.setContent(answer.getContent());
+		return "answer_form";
+	}
+	
+	@PreAuthorize("isAuthenticated()")
+	@PostMapping("/modify/{id}")
+	public String answerModify(@Valid AnswerForm answerForm, BindingResult bindingResult,
+			@PathVariable("id") Integer id, Principal principal) {
+		if (bindingResult.hasErrors()) {
+			return "answer_form";
+		}
+		Question answer = this.questionService.getOneAnswer(id, 1);
+		if (!answer.getAuthor().getUsername().equals(principal.getName())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수정권한이 없습니다.");
+		}
+		questionService.modify(answer, null, answerForm.getContent());
+		return "redirect:/question/detail/%s#answer_%d".formatted(answer.getParent().getId(), answer.getId());
+	}
+	
+
+	@PreAuthorize("isAuthenticated()")
+
 	@GetMapping("/delete/{id}")
 	public String answerDelete(Principal principal, @PathVariable("id") Integer id) {
-		Answer answer = this.answerService.getAnswer(id);
+		Question answer = this.questionService.getOneAnswer(id, 1);
 		if (!answer.getAuthor().getUsername().equals(principal.getName())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "삭제권한이 없습니다.");
 		}
-		this.answerService.delete(answer);
-		return String.format("redirect:/question/detail/%s", answer.getQuestion().getId());
+		this.questionService.delete(answer);
+		return String.format("redirect:/question/detail/%s", answer.getParent().getId());
 	}
-	
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/modify/{id}")
-    public String answerModify(@Valid AnswerForm answerForm, BindingResult bindingResult,
-            @PathVariable("id") Integer id, Principal principal) {
-        if (bindingResult.hasErrors()) {
-            return "answer_form";
-        }
-        Answer answer = this.answerService.getAnswer(id);
-        if (!answer.getAuthor().getUsername().equals(principal.getName())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수정권한이 없습니다.");
-        }
-        this.answerService.modify(answer, answerForm.getContent());
 
-		return "redirect:/question/detail/%s#answer_%d".formatted(answer.getQuestion().getId(), answer.getId());
-    } 
+
 }

@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'eclipse'  // Eclipse 플러그인 추가 (git으로 가져올 때, Gradle 8+에서는 eclipse 플러그인이 자동으로 포함되지 않아서 build.gradle에 직접 추가)
 	id 'org.springframework.boot' version '3.4.2'
 	id 'io.spring.dependency-management' version '1.1.7'
 }

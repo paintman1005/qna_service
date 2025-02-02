@@ -3,10 +3,8 @@ package com.sbs.qna_service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,9 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Rollback;
 
-import com.sbs.qna_service.boundedContext.answer.Answer;
-import com.sbs.qna_service.boundedContext.answer.AnswerRepository;
-import com.sbs.qna_service.boundedContext.answer.AnswerService;
 import com.sbs.qna_service.boundedContext.question.Question;
 import com.sbs.qna_service.boundedContext.question.QuestionRepository;
 import com.sbs.qna_service.boundedContext.question.QuestionService;
@@ -25,8 +20,6 @@ import com.sbs.qna_service.boundedContext.user.SiteUser;
 import com.sbs.qna_service.boundedContext.user.UserRepository;
 import com.sbs.qna_service.boundedContext.user.UserService;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.OneToMany;
 import jakarta.transaction.Transactional;
 
 @SpringBootTest
@@ -34,22 +27,15 @@ class QnaServiceApplicationTests {
 
 	@Autowired
 	private UserService userService;
-	
+
 	@Autowired
 	private UserRepository userRepository;
-	
+
 	@Autowired
 	private QuestionService questionService;
 
 	@Autowired // フィールド注入
 	private QuestionRepository questionRepository;
-
-	@Autowired
-	private AnswerRepository answerRepository;
-	
-	@Autowired
-	private AnswerService answerService;
-
 
 	@BeforeEach // テストケースが実行する前に一回実行する
 	void beforeEach() {
@@ -58,33 +44,26 @@ class QnaServiceApplicationTests {
 		// 痕跡削除 （次のINSERT際にIDが1に設定させるために）
 		questionRepository.clearAutoIncrement();
 
-		// すべてのデータ削除
-		answerRepository.deleteAll();
-		// 痕跡削除 （次のINSERT際にIDが1に設定させるために）
-		answerRepository.clearAutoIncrement();
-		
 		userRepository.deleteAll();
-		
+
 		userRepository.clearAutoIncrement();
-		
-		//회원 2명 생성
+
+		// 회원 2명 생성
 		SiteUser user1 = userService.create("user1", "user1@test.com", "1234");
 		SiteUser user2 = userService.create("user2", "user2@test.com", "1234");
-		
+
 		// 질문 생성
-		Question q1 = questionService.create("질문이 머에요", "질문에 대해서 알고 싶습니다.", user1);
+		Question q1 = questionService.create("질문이 머에요", "질문에 대해서 알고 싶습니다.", user1, null);
 		questionRepository.save(q1); // 질문과 질문내용 보관
-		
-		Question q2 = questionService.create("스프링부트 모델 질문입니다.", "id는 자동 생성되나요", user2);
+
+		Question q2 = questionService.create("스프링부트 모델 질문입니다.", "id는 자동 생성되나요", user2, null);
 		questionRepository.save(q1); // 질문과 질문내용 보관
 		questionRepository.save(q2);
 
 		// コメント生成
-		Answer a1 = answerService.create(q2,"생성되어 보관합니다.", user1);
+		Question qa = questionService.create(null, "질문에 답변 장소입니다.", user1, q2.getId());
 
-		q2.addAnswer(a1);
-//		q2.getAnswerList().add(a1);
-		answerRepository.save(a1);
+		questionRepository.save(qa);
 	}
 
 	@Test
@@ -92,9 +71,10 @@ class QnaServiceApplicationTests {
 	@DisplayName("データを保存する")
 	void t001() {
 		SiteUser user1 = userService.getUser("user1");
-		
-		Question q = questionService.create("겨울은 춥습니다.", "맞아요. 춥습니다.", user1);
-		assertEquals("겨울은 춥습니다.", questionRepository.findById(3).get().getSubject());
+
+		Question q = questionService.create("겨울은 춥습니다.", "맞아요. 춥습니다.", user1, null);
+		assertEquals("겨울은 춥습니다.", questionRepository.findById(4).get().getSubject());
+		assertEquals("맞아요. 춥습니다.", questionRepository.findById(4).get().getContent());
 	}
 
 	/*
@@ -105,7 +85,7 @@ class QnaServiceApplicationTests {
 	void t002() {
 		List<Question> all = questionRepository.findAll();
 		// select * from table
-		assertEquals(2, all.size());
+		assertEquals(3, all.size());
 
 		Question q = all.get(0);
 		assertEquals("질문이 머에요", q.getSubject());
@@ -177,13 +157,13 @@ class QnaServiceApplicationTests {
 	@DisplayName("データ削除する")
 	void t008() {
 		// SQL SELECT COUNT(*) FROM question;
-		assertEquals(2, questionRepository.count());
+		assertEquals(3, questionRepository.count());
 		// SQL SELECT * FROM question WHERE id=1;
 		Optional<Question> oq = questionRepository.findById(1);
 		assertTrue(oq.isPresent());
 		Question q = oq.get();
 		questionRepository.delete(q);
-		assertEquals(1, questionRepository.count());
+		assertEquals(2, questionRepository.count());
 	}
 
 	/*
@@ -202,23 +182,8 @@ class QnaServiceApplicationTests {
 		assertTrue(oq.isPresent());
 		Question q = oq.get();
 
-		/*
-		 * v1 Optional<Question> oq = questionRepository.findById(2);
-		 * assertTrue(oq.isPresent()); Question q = oq.get();
-		 */
-
-		/*
-		 * v2 Question q = questionRepository.findById(2).orElse(null));
-		 */
-
-		/*
-		 * Answer a = new Answer(); a.setContent("生成されて保管されます。"); a.setQuestion(q); //
-		 * 度の質問に対するコメント化知るために a.setCreateDate(LocalDateTime.now());
-		 * answerRepository.save(a);
-		 */
-
 		SiteUser user2 = userService.getUser("user2");
-		Answer a = answerService.create(q,"생성되어 보관됩니다.", user2);
+		Question a = questionService.create(null, "생성되어 보관됩니다.", user2, q.getId());
 		assertEquals("생성되어 보관됩니다.", a.getContent());
 	}
 
@@ -227,15 +192,15 @@ class QnaServiceApplicationTests {
 	 * A.question_id WHERE A.id=?;
 	 * 
 	 **/
-	@Test
-	@DisplayName("特定のコメントを取得する")
-	void t010() {
-		Optional<Answer> qa = answerRepository.findById(1);
-		assertTrue(qa.isPresent());
-		Answer a = qa.get();
-
-		assertEquals(1, a.getId());
-	}
+	/*
+	 * @Test
+	 * 
+	 * @DisplayName("特定のコメントを取得する") void t010() { Optional<Answer> qa =
+	 * answerRepository.findById(1); assertTrue(qa.isPresent()); Answer a =
+	 * qa.get();
+	 * 
+	 * assertEquals(1, a.getId()); }
+	 */
 
 	/*
 	 * EAGERの場合。以下のJOINを実行される SELECT Q.*, A.* FROM answer AS Q LEFT JOIN answer AS A
@@ -260,18 +225,19 @@ class QnaServiceApplicationTests {
 		// または、fetchタイプを変更。ただ、お勧めしない。@OneToMany(mappedBy = "question", cascade =
 		// CascadeType.REMOVE, fetch = FetchType.EAGER)
 		// 下SQL : SELECT * FROM answer WHERE question_id = 2;を実行する。
-		List<Answer> answerList = q.getAnswerList();// DB接続が切れたので、answer取得失敗
 
-		assertEquals(2, answerList.size());
-		assertEquals("생성되어 보관합니다.", answerList.get(0).getContent());
+		// List<Answer> answerList = q.getAnswerList();// DB接続が切れたので、answer取得失敗
+
+		// assertEquals(2, answerList.size());
+		// assertEquals("생성되어 보관합니다.", answerList.get(0).getContent());
 	}
 
-	@Test
-	@DisplayName("대량의 테스트 데이터 만들기")
-	void t012() {
-		SiteUser user2 = userService.getUser("user2");
-		IntStream.rangeClosed(3, 300)
-				.forEach(no -> questionService.create("테스트 제목입니다. %d".formatted(no), "테스트 내용입니다. %d".formatted(no), user2));
-	}
+//	@Test
+//	@DisplayName("대량의 테스트 데이터 만들기")
+//	void t012() {
+//		SiteUser user2 = userService.getUser("user2");
+//		IntStream.rangeClosed(3, 4)
+//				.forEach(no -> questionService.create("테스트 제목입니다. %d".formatted(no), "테스트 내용입니다. %d".formatted(no), user2));
+//	}
 
 }

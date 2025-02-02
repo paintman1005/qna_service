@@ -1,11 +1,10 @@
 spring:
   profiles:
     active: dev # 기본적으로 dev 환경임을 명시
-  output:
-    thymeleaf:
+  thymeleaf:
     cache: false # 타임리프 캐시 끄기
     prefix: file:src/main/resources/templates/ # 타임리프 캐시 끄기(이 설정을 해야 꺼짐)
-    devtools:
+  devtools:
     livereload:
         enabled: true
     restart:
@@ -28,5 +27,8 @@ spring:
 
   logging:
     level:
+      root: DEBUG  # 전체 애플리케이션에 대한 로그 레벨 설정
+      org.springframework.web: DEBUG  # Spring MVC 관련 요청 로그
+      # org.hibernate.SQL: DEBUG
       org.hibernate.orm.jdbc.bind: TRACE
       org.hibernate.orm.jdbc.extract: TRACE

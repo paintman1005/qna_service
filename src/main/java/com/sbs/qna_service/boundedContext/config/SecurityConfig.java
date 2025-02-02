@@ -27,9 +27,9 @@ public class SecurityConfig {
 				.requestMatchers(new AntPathRequestMatcher("/user/login")).permitAll()
 				.requestMatchers(new AntPathRequestMatcher("/style.css")).permitAll()
 				.requestMatchers(new AntPathRequestMatcher("/**")).permitAll()
-				// 그 외의 요청은 인증이 필요
+					// 그 외의 요청은 인증이 필요
 				.anyRequest().authenticated())
-				// 로그인 폼으로 이동
+					// 로그인 폼으로 이동
 				.formLogin((formLogin) -> formLogin
 						/**
 						 * 템플릿에서 name="username", name="password"를 커스텀 마이징에 쓸때 아래를 사용한다. 
@@ -45,7 +45,7 @@ public class SecurityConfig {
 						// POST
 						// 시큐리티에게 로그인 폼 처리 url을 알려준다.
 						.defaultSuccessUrl("/"))
-				.logout((logout) -> logout
+						.logout((logout) -> logout
 						.logoutRequestMatcher(new AntPathRequestMatcher("/user/logout", "POST"))
 				// 로그인 성공시 리다이렉트 경로
 				.logoutSuccessUrl("/")
